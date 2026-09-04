@@ -74,16 +74,46 @@ yet).
   cross-project from `site-health-api-178823/ssl-site-health-api` (same
   `python:3.11-slim` base, harmless dedup, not a data leak).
 
-### Stopped before `gcloud run deploy` (2.4 ★)
+- **2.4 ★ done**: deployed, revision `eu-vat-check-api-00001-cm9`. Smoke
+  tests: `/validate?vat=IE6388047V` → 200, valid, GOOGLE IRELAND LIMITED;
+  `/status` → 200, `DE` was actually `Unavailable` live during the check
+  (real proof the endpoint earns its place). Service URL:
+  `https://eu-vat-check-api-un6js5s4rq-ew.a.run.app` (Terraform's stable
+  hash-based URL; `gcloud run deploy` originally printed the
+  project-number-based alias `...-88194316870...`, both resolve to the
+  same service).
+- **2.5 done**: pulled bet #1's exact import-ID formats straight from its
+  live remote state (`terraform state show` on each resource) rather than
+  guessing — the `google_cloud_run_v2_service_iam_member` import ID needed
+  spaces (`resource_name role member`), not slashes, unlike the others.
+  All 8 resources imported (5 `google_project_service`, artifact registry
+  repo, Cloud Run service, its public IAM binding). `terraform plan` showed
+  exactly the expected diff (uptime check to create + the known cosmetic
+  `min_instance_count`/`manual_instance_count` drift) — `terraform apply`
+  done, uptime check `eu-vat-check-api-health` created.
+- **2.6 done**: WIF built from scratch mirroring bet #1's live config
+  (read via `gcloud iam workload-identity-pools providers describe` on
+  `site-health-api-178823` first, to copy the exact attribute mapping and
+  condition rather than re-deriving it) — pool `github-pool`, provider
+  `github-provider` scoped to `assertion.repository=='lele25896/eu-vat-check-api'`,
+  service account `github-ci@vat-check-api-817540.iam.gserviceaccount.com`
+  with the same 5 project roles as bet #1
+  (artifactregistry.admin/iam.serviceAccountUser/monitoring.editor/run.admin/serviceusage.serviceUsageAdmin)
+  plus bucket-scoped `roles/storage.admin` on `gs://eu-vat-check-tfstate`
+  plus `roles/iam.workloadIdentityUser` restricted to this repo. Repo
+  secrets `WIF_PROVIDER`, `WIF_SERVICE_ACCOUNT`, `GCP_PROJECT_ID` set via
+  `gh secret set`.
 
-Gabriele said stop here rather than confirm the first public/unauthenticated
-deploy this session. Nothing after this point has run: no Cloud Run
-service, no `terraform import`, no WIF, no RapidAPI wiring. Resume with the
-exact command in the plan's §2.4 / README's Deploy section:
+Auto-mode's classifier blocked every IAM-granting command this session
+(role bindings, bucket ACL change, WIF impersonation binding) even though
+none were ★-marked in the plan — each needed a separate explicit
+confirmation from Gabriele before it ran. All were approved and completed.
 
-```
-gcloud run deploy eu-vat-check-api --image europe-west1-docker.pkg.dev/vat-check-api-817540/eu-vat-check-api/eu-vat-check-api:latest --region europe-west1 --allow-unauthenticated --memory 256Mi --max-instances 2
-```
+### Next: Checkpoint 2
 
-Then smoke test, then §2.5 (`terraform import` of the 5 resources already
-created manually), then §2.6 (WIF for CI), then Phase 3 (RapidAPI wiring).
+Pushing this status update as a trivial commit to exercise the full CI
+pipeline (test → terraform plan/apply → build/push → deploy-cloudrun) now
+that WIF secrets exist. Expect green. Then Phase 3: RapidAPI wiring
+(Studio project, gateway proxy secret, listing, monetize) — browser-driven,
+see the notes already in Claude Code memory `side-income-plan.md` from bet
+#1 for the iframe/Save-button gotchas.
