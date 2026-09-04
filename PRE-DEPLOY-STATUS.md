@@ -43,9 +43,47 @@ $4.99 Pro 3,000/mo → $9.99 Ultra 15,000/mo).
   `terraform validate`: **valid**. `terraform/terraform.tfvars` `project_id`
   still a placeholder — set in Phase 2.
 
-### Next steps
+### Checkpoint 1 — done 2026-09-04
 
-- `git init`, public GitHub repo `lele25896/eu-vat-check-api`, push
-  (Checkpoint 1 — CI expected red, no WIF secrets yet).
-- Phase 2: new GCP project, manual first deploy, Terraform import, WIF for
-  CI (money-touching steps, confirm each ★ with Gabriele per the plan).
+Pushed to https://github.com/lele25896/eu-vat-check-api (public, master
+branch, first commit `cd23b4a`). CI is red as expected (no WIF secrets
+yet).
+
+## Phase 2 — in progress 2026-09-04
+
+- **2.1 ★ done**: `bq ls --project_id=project-8efbf414-9044-47b6-ae0`
+  confirmed empty, Gabriele confirmed, billing unlinked from "My First
+  Project" — freed a slot on `01848B-AE8053-ECCE44`.
+- **2.2 ★ done**: new project `vat-check-api-817540` created (`vat` was
+  *not* rejected as a word this time, no fallback needed), billing linked,
+  set as active `gcloud config` project.
+- **2.3 done**: APIs enabled (run/artifactregistry/monitoring/
+  iamcredentials/cloudresourcemanager). GCS bucket
+  `gs://eu-vat-check-tfstate` created. Artifact Registry repo
+  `eu-vat-check-api` created in `europe-west1` — first attempt hit
+  `PERMISSION_DENIED` on `artifactregistry.repositories.create` despite
+  confirmed `roles/owner`; retried ~20s later and it succeeded (IAM/API
+  propagation lag right after project creation, not a real permissions
+  problem — same kind of gotcha as bet #1's missing-services discovery,
+  worth remembering if a fresh-project command 403s on the first try).
+  `terraform/terraform.tfvars` `project_id` updated to `vat-check-api-817540`.
+  Docker Desktop wasn't running — started it, polled until the engine was
+  ready (~30s), then built and pushed the image to
+  `europe-west1-docker.pkg.dev/vat-check-api-817540/eu-vat-check-api/eu-vat-check-api:latest`
+  (digest `sha256:8e5fa5430dae5...`). Several base-image layers mounted
+  cross-project from `site-health-api-178823/ssl-site-health-api` (same
+  `python:3.11-slim` base, harmless dedup, not a data leak).
+
+### Stopped before `gcloud run deploy` (2.4 ★)
+
+Gabriele said stop here rather than confirm the first public/unauthenticated
+deploy this session. Nothing after this point has run: no Cloud Run
+service, no `terraform import`, no WIF, no RapidAPI wiring. Resume with the
+exact command in the plan's §2.4 / README's Deploy section:
+
+```
+gcloud run deploy eu-vat-check-api --image europe-west1-docker.pkg.dev/vat-check-api-817540/eu-vat-check-api/eu-vat-check-api:latest --region europe-west1 --allow-unauthenticated --memory 256Mi --max-instances 2
+```
+
+Then smoke test, then §2.5 (`terraform import` of the 5 resources already
+created manually), then §2.6 (WIF for CI), then Phase 3 (RapidAPI wiring).
