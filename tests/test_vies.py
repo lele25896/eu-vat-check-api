@@ -2,6 +2,8 @@
 testable via monkeypatching app.vies._fetch — the actual live VIES call is
 exercised once via the API in test_api.py.
 """
+import urllib.error
+
 import pytest
 
 from app import vies
@@ -89,6 +91,29 @@ def test_check_vat_unknown_error_maps_to_502(monkeypatch):
     with pytest.raises(ViesError) as exc:
         check_vat("IE", "6388047V")
     assert exc.value.status_code == 502
+
+
+def test_fetch_http_4xx_is_non_retryable(monkeypatch):
+    def _raise(url, timeout=10):
+        raise urllib.error.HTTPError(url, 404, "Not Found", None, None)
+
+    monkeypatch.setattr(vies.urllib.request, "urlopen", _raise)
+    with pytest.raises(ViesError) as exc:
+        vies._fetch("http://example.com")
+    assert exc.value.status_code == 502
+    assert exc.value.payload["error"] == "VIES_HTTP_404"
+    assert "retryable" not in exc.value.payload
+
+
+def test_fetch_http_5xx_is_retryable(monkeypatch):
+    def _raise(url, timeout=10):
+        raise urllib.error.HTTPError(url, 503, "Service Unavailable", None, None)
+
+    monkeypatch.setattr(vies.urllib.request, "urlopen", _raise)
+    with pytest.raises(ViesError) as exc:
+        vies._fetch("http://example.com")
+    assert exc.value.status_code == 503
+    assert exc.value.payload["retryable"] is True
 
 
 def test_vies_status(monkeypatch):

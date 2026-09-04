@@ -84,6 +84,12 @@ def _fetch(url: str) -> dict:
     try:
         with urllib.request.urlopen(url, timeout=10) as resp:
             return json.loads(resp.read())
+    except urllib.error.HTTPError as e:
+        if 400 <= e.code < 500:
+            raise ViesError(502, {"error": f"VIES_HTTP_{e.code}"})
+        raise ViesError(
+            503, {"error": "SERVICE_UNAVAILABLE", "retryable": True}
+        )
     except (urllib.error.URLError, TimeoutError, json.JSONDecodeError):
         raise ViesError(
             503, {"error": "SERVICE_UNAVAILABLE", "retryable": True}
@@ -117,7 +123,11 @@ def check_vat(cc: str, number: str) -> dict:
 
 def vies_status() -> dict:
     data = _fetch(f"{VIES_BASE}/check-status")
-    countries = {c["countryCode"]: c["availability"] for c in data.get("countries", [])}
+    countries = {
+        c["countryCode"]: c["availability"]
+        for c in data.get("countries", [])
+        if c.get("countryCode") and c.get("availability")
+    }
     return {
         "vies_available": bool(data.get("vow", {}).get("available", False)),
         "countries": countries,
