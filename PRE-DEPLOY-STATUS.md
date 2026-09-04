@@ -109,11 +109,24 @@ Auto-mode's classifier blocked every IAM-granting command this session
 none were ★-marked in the plan — each needed a separate explicit
 confirmation from Gabriele before it ran. All were approved and completed.
 
-### Next: Checkpoint 2
+### Checkpoint 2 — done 2026-09-04
 
-Pushing this status update as a trivial commit to exercise the full CI
-pipeline (test → terraform plan/apply → build/push → deploy-cloudrun) now
-that WIF secrets exist. Expect green. Then Phase 3: RapidAPI wiring
-(Studio project, gateway proxy secret, listing, monetize) — browser-driven,
-see the notes already in Claude Code memory `side-income-plan.md` from bet
-#1 for the iframe/Save-button gotchas.
+A markdown-only push doesn't trigger CI (`paths-ignore: ["**.md"]`), so
+instead of a throwaway commit, reran the last real (non-md) push
+(`671039c`, run `33820182166`) that had originally failed for lack of WIF
+secrets — `gh run rerun` re-executes against the current commit with
+whatever secrets exist *now*, which is exactly the right test. All three
+jobs green: `test` 17s, `terraform` 30s, `deploy` 1m23s. Confirmed the
+CI-deployed revision still serves `/validate?vat=IE6388047V` correctly
+afterward. Full pipeline (test → terraform plan/apply → build/push →
+deploy-cloudrun) verified end-to-end.
+
+## Phase 3 — not started
+
+RapidAPI wiring (Studio project, gateway proxy secret, listing, monetize)
+— browser-driven. Per bet #1's notes (Claude Code memory
+`side-income-plan.md`): Gabriele needs to log into RapidAPI in **real
+Chrome** (`claude-in-chrome` tools), the in-app Browser pane's login
+doesn't carry over. Studio tabs are separate iframes with unreliable
+coordinate-click Save buttons — drive Save/inputs via `javascript_tool`
+instead, and verify actual saved state after.
