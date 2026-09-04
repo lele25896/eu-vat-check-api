@@ -134,12 +134,49 @@ new revision serves `/health` and `/validate?vat=IE6388047V` correctly
 (GOOGLE IRELAND LIMITED). No manual `docker build`/`gcloud run deploy`
 needed — CI (wired in Phase 2.6) handles it on every push to master now.
 
-## Phase 3 — not started
+## Phase 3 — done 2026-09-04
 
-RapidAPI wiring (Studio project, gateway proxy secret, listing, monetize)
-— browser-driven. Per bet #1's notes (Claude Code memory
-`side-income-plan.md`): Gabriele needs to log into RapidAPI in **real
-Chrome** (`claude-in-chrome` tools), the in-app Browser pane's login
-doesn't carry over. Studio tabs are separate iframes with unreliable
-coordinate-click Save buttons — drive Save/inputs via `javascript_tool`
-instead, and verify actual saved state after.
+RapidAPI Studio project created (`EU VAT Number Checker`,
+`api_fd01ab08-39c5-460b-a9d6-83bd80f2b987`), Business category, general
+listing + long description filled in (differentiators: format-precheck,
+honest VIES-outage-vs-invalid 503/400 split, all 27+XI coverage).
+
+Gotcha found this bet: the Studio "Requests" tab (Postman-style client,
+where bet #1 configured its backend target) hit a platform-side bug on
+this project — `SyncServerUnknownIssue: 405` on every load, reproduced 3x
+over ~10 min, confirmed project-specific (bet #1's own project loads that
+tab fine). Worked around it: skipped "Requests" entirely and used
+**Definitions → Endpoints** (`Create Endpoint`) to define `GET /validate`
+(query params `vat` required, `country` optional) and `GET /status`, and
+**General → Base URL** (a plain URL field on that same page, easy to miss
+below the fold) to point at the Cloud Run origin
+`https://eu-vat-check-api-un6js5s4rq-ew.a.run.app`, health check `/health`.
+This is a cleaner path than bet #1's Requests-tree approach if it's
+available — worth trying Definitions+Base URL first next time before
+touching Requests at all.
+
+Gateway → Firewall Settings: `X-RapidAPI-Proxy-Secret` read from Studio,
+set on Cloud Run via `gcloud run services update --update-env-vars
+RAPIDAPI_PROXY_SECRET=...` (revision `eu-vat-check-api-00004-hvl`).
+Confirmed direct Cloud Run `/validate` now 403s without the header,
+`/health` stays open.
+
+Monetize → Public Plans: BASIC $0 (Requests object, Daily quota, 15/day,
+Hard Limit), PRO $4.99/mo (3,000/month), ULTRA $9.99/mo (15,000/month).
+MEGA left disabled.
+
+End-to-end verified through the gateway host
+(`eu-vat-number-checker1.p.rapidapi.com`) with a real `X-RapidAPI-Key`:
+`/validate?vat=IE6388047V` → 200 valid GOOGLE IRELAND LIMITED,
+`/status` → 200 live per-country availability, format-invalid VAT → 200
+`format_valid:false`. Direct Cloud Run access without the proxy secret
+still 403s. Public listing:
+https://rapidapi.com/lele25896/api/eu-vat-number-checker1
+
+## Phase 4 — done 2026-09-04
+
+Bet #2 is live end-to-end: deployed, terraform-managed, CI'd on every
+push to master, RapidAPI-listed and monetized (BASIC/PRO/ULTRA). Nothing
+left open on this bet. Close-out recorded here, in Claude Code memory
+(`side-income-plan.md`), and in the vault
+(`wiki/entities/projects/side-income.md`).
