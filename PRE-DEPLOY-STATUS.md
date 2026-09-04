@@ -121,6 +121,19 @@ CI-deployed revision still serves `/validate?vat=IE6388047V` correctly
 afterward. Full pipeline (test → terraform plan/apply → build/push →
 deploy-cloudrun) verified end-to-end.
 
+### Checkpoint 3 — done 2026-09-04
+
+Applied the pre-deploy hardening that had been skipped before Phase 2's
+deploy: `.dockerignore`, `_fetch` now catches `HTTPError` before `URLError`
+(4xx → `ViesError(502, {"error":"VIES_HTTP_<code>"})` non-retryable, 5xx
+still 503 retryable), `vies_status` guards against entries missing
+`countryCode`/`availability`. Added 2 tests for the HTTPError split
+(39/39 passing). Committed (`b0a483f`) and pushed — CI ran the full
+test/terraform/deploy pipeline green (run `33822322847`), confirmed the
+new revision serves `/health` and `/validate?vat=IE6388047V` correctly
+(GOOGLE IRELAND LIMITED). No manual `docker build`/`gcloud run deploy`
+needed — CI (wired in Phase 2.6) handles it on every push to master now.
+
 ## Phase 3 — not started
 
 RapidAPI wiring (Studio project, gateway proxy secret, listing, monetize)
